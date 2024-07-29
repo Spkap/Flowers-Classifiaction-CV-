@@ -59,6 +59,8 @@ plt.ylabel('Count')
 plt.title('Distribution of Flower Categories')
 plt.show()
 ```
+![Unknown-2](https://github.com/user-attachments/assets/c39cd0a4-8f57-4dc3-9905-c87af8fb5bbd)
+
 
 ### Data Preprocessing
 Images were resized to 224x224 pixels and normalized. Data augmentation techniques were applied to enhance the training data variability.
@@ -225,6 +227,8 @@ plt.title('Training and Validation Accuracy')
 
 plt.show()
 ```
+![Unknown](https://github.com/user-attachments/assets/d1817ff7-0e18-42e2-a187-abcfe1b39e5d)
+
 
 ## Conclusion
 This project demonstrates the application of deep learning techniques to classify flower species using the ResNet50 model. The high accuracy achieved reflects the model's effectiveness and the thoroughness of the preprocessing and training process. 
