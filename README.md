@@ -235,7 +235,6 @@ This project demonstrates the application of deep learning techniques to classif
 
 ## Repository Structure
 - `Flowers CV.ipynb`: The Jupyter notebook containing all the code and explanations for the project.
-- `data/`: Directory containing the dataset.
 - `README.md`: This file, providing an overview and detailed documentation of the project.
 
 ## How to Use
