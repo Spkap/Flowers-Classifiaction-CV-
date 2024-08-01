@@ -88,8 +88,8 @@ images_dir = 'flowers/102'
 full_dataset = ImageFolder(images_dir, transform=transform)
 
 # Split dataset into training, validation, and testing sets
-train_size = int(0.7 * len(full_dataset))
-val_size = int(0.15 * len(full_dataset))
+train_size = int(0.8 * len(full_dataset))
+val_size = lenfull_dataset) - train_size
 test_size = len(full_dataset) - train_size - val_size
 
 train_dataset, val_dataset, test_dataset = random_split(full_dataset, [train_size, val_size, test_size])
