@@ -1,30 +1,41 @@
-
-
----
-
 # Flower Species Classification using ResNet50
 
 ## Project Overview
 
-This project focuses on the classification of 102 flower species from the Oxford 102 Flowers dataset using a deep learning model based on the ResNet50 architecture. The goal is to accurately identify the species of flowers from images by leveraging the power of convolutional neural networks.
+This project focuses on the classification of 102 flower species from the Oxford 102 Flowers dataset using a deep learning model based on the ResNet50 architecture. The goal is to accurately identify the species of flowers from images by leveraging transfer learning with pre-trained convolutional neural networks.
+
+![Sample Flower Images](Assets/sample_flowers.png)
+
+## Dataset
+
+The [Oxford 102 Flower Dataset](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/) contains 102 flower categories commonly found in the United Kingdom. Each class consists of between 40 and 258 images, with a total of 8189 images. The flowers are carefully selected to have large variations in scale, pose, and lighting, making this a challenging classification task.
+
+### Class Distribution
+
+The dataset has a relatively balanced distribution of images across the 102 flower categories:
+
+![Distribution of Flower Categories](Assets/flower_distribution.png)
 
 ## Libraries Used
 
-- **torch** and **torchvision**: Core libraries for deep learning in Python. `torch` provides the building blocks for model creation, and `torchvision` offers datasets, models, and image transformation utilities.
-- **numpy** and **scipy**: Fundamental libraries for numerical operations. `numpy` is used for array manipulations, and `scipy` provides advanced mathematical functions and signal processing.
-- **matplotlib** and **seaborn**: Libraries for data visualization. `matplotlib` is a plotting library, and `seaborn` builds on it for more complex visualizations.
-- **PIL**: The Python Imaging Library, used for opening, manipulating, and saving image files.
+- **PyTorch and torchvision**: For deep learning model creation, training, and evaluation
+- **NumPy and Pandas**: For numerical operations and data manipulation
+- **Matplotlib and Seaborn**: For data visualization and plotting metrics
+- **SciPy**: For loading MATLAB data files containing image labels
+- **tqdm**: For progress tracking during training and data processing
+- **Logging**: For tracking the execution and saving important information
 
-## Methods and Workflow
+## Data Acquisition and Exploration
 
-### Data Acquisition
-The dataset was downloaded from the University of Oxford's official website and extracted for use.
+### Downloading the Dataset
+
+The dataset is downloaded from the Oxford Visual Geometry Group's website using wget:
 
 ```bash
 # Downloading all the data using wget command if not already downloaded
-[ ! -f setid.mat ] && wget 'https://www.robots.ox.ac.uk/~vgg/data/flowers/102/setid.mat'
-[ ! -f imagelabels.mat ] && wget 'https://www.robots.ox.ac.uk/~vgg/data/flowers/102/imagelabels.mat'
-[ ! -f 102flowers.tgz ] && wget 'https://www.robots.ox.ac.uk/~vgg/data/flowers/102/102flowers.tgz'
+[ ! -f setid.mat ] && wget "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/setid.mat"
+[ ! -f imagelabels.mat ] && wget "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/imagelabels.mat"
+[ ! -f 102flowers.tgz ] && wget "https://www.robots.ox.ac.uk/~vgg/data/flowers/102/102flowers.tgz"
 
 # Extracting the data from archived files if not already extracted
 [ -f 102flowers.tgz ] && tar xvf 102flowers.tgz
@@ -33,216 +44,199 @@ The dataset was downloaded from the University of Oxford's official website and 
 [ -f 102flowers.tgz ] && rm -rf 102flowers.tgz
 ```
 
-### Data Loading
-The labels are stored in MATLAB files, which were loaded using `scipy.io`.
+### Data Exploration
 
-```python
-from scipy.io import loadmat
-import numpy as np
+The dataset includes:
 
-# Load the labels from MATLAB file
-labels = loadmat('imagelabels.mat')['labels'].squeeze()
-print("Labels loaded:", labels.shape)
+- 102 different flower categories
+- Labels stored in MATLAB format files
+- Images stored in JPEG format
+
+Distribution analysis shows that the dataset has a balanced representation across the 102 flower categories, with each category having approximately 40-258 images.
+
+### Directory Organization
+
+After downloading, the images are organized into directories based on their class labels:
+
+```
+data/
+  ├── 1/            # Flower category 1
+  │   ├── image_00001.jpg
+  │   ├── image_00002.jpg
+  │   └── ...
+  ├── 2/            # Flower category 2
+  └── ...
 ```
 
-### Data Visualization
-Visualized the distribution of flower categories to identify any imbalances.
+## Data Preprocessing
+
+### Image Transformations
+
+Images are processed using the following transformations:
 
 ```python
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Counting the labels and making a histogram to see their frequency
-sns.histplot(labels)
-plt.xlabel('Category Number')
-plt.ylabel('Count')
-plt.title('Distribution of Flower Categories')
-plt.show()
-```
-![Unknown-2](https://github.com/user-attachments/assets/c39cd0a4-8f57-4dc3-9905-c87af8fb5bbd)
-
-
-### Data Preprocessing
-Images were resized to 224x224 pixels and normalized. Data augmentation techniques were applied to enhance the training data variability.
-
-```python
-from torchvision import transforms
-
-# Transforms for data augmentation and normalization
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    transforms.Resize((256, 256)),  # Resize images
+    transforms.CenterCrop(224),     # Center crop to 224x224
+    transforms.RandomHorizontalFlip(), # Augmentation: Random horizontal flip
+    transforms.ToTensor(),          # Convert to Tensor
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # ImageNet normalization
 ])
 ```
 
-### Dataset Preparation
-The dataset was split into training, validation, and testing subsets.
+### Dataset Splitting
+
+The dataset is split into training (80%) and validation (20%) sets:
 
 ```python
-from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import ImageFolder
-
-# Load dataset
-images_dir = 'flowers/102'
-full_dataset = ImageFolder(images_dir, transform=transform)
-
-# Split dataset into training, validation, and testing sets
-train_size = int(0.8 * len(full_dataset))
-val_size = lenfull_dataset) - train_size
-test_size = len(full_dataset) - train_size - val_size
-
-train_dataset, val_dataset, test_dataset = random_split(full_dataset, [train_size, val_size, test_size])
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+# Split dataset into training and validation sets
+train_size = int(0.8 * len(dataset))
+val_size = len(dataset) - train_size
+train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 ```
 
-### Model Architecture
-The ResNet50 model was used, pre-trained on ImageNet, and fine-tuned for flower species classification.
+## Model Architecture
+
+### Base Model
+
+The project uses a pre-trained ResNet50 model as the base architecture:
 
 ```python
-import torch
-import torch.nn as nn
-from torchvision import models
-
-# Load pre-trained ResNet50 model
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# Load pretrained ResNet50 model
 model = models.resnet50(pretrained=True)
-
-# Modify the final layer to match the number of flower categories
-num_features = model.fc.in_features
-model.fc = nn.Linear(num_features, 102)
-model = model.to(device)
 ```
+
+### Transfer Learning Approach
+
+The transfer learning approach includes:
+
+1. Freezing all layers of the pre-trained ResNet50 model
+2. Replacing the final fully-connected layer with a new one that outputs 102 classes
+3. Only training the new fully-connected layer, leveraging the feature extraction capabilities of the pre-trained layers
+
+```python
+# Freeze all layers except the final fully connected layer
+for param in model.parameters():
+    param.requires_grad = False
+
+# Modify the final fully connected layer for 102 flower classes
+num_classes = 102
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+```
+
+## Training Process
 
 ### Training Setup
-Configured the training process with the Adam optimizer and cross-entropy loss.
+
+- **Loss Function**: Cross-Entropy Loss
+- **Optimizer**: SGD with learning rate 0.001 and momentum 0.9
+- **Batch Size**: 32
+- **Number of Epochs**: 20
+- **Device**: CUDA (GPU) if available, otherwise CPU
+
+### Training Loop
+
+The training loop includes:
+
+1. Forward pass through the network
+2. Loss calculation using cross-entropy
+3. Backpropagation of gradients
+4. Parameter updates using SGD optimizer
+5. Metrics tracking for both training and validation sets
+
+### Training Metrics
+
+During training, the following metrics are tracked:
+
+- Training Loss
+- Training Accuracy
+- Validation Loss
+- Validation Accuracy
+
+## Results and Evaluation
+
+### Performance Metrics
+
+After 20 epochs of training, the model achieved approximately:
+
+- Training Accuracy: ~95%
+- Validation Accuracy: ~82.5%
+
+### Visualization
+
+The training and validation metrics are visualized to analyze the model's performance:
+
+![Training and Validation Metrics](Assets/output.png)
 
 ```python
-import torch.optim as optim
-
-# Training setup
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-# Training loop
-num_epochs = 50
-train_metrics = {'loss': [], 'accuracy': []}
-val_metrics = {'loss': [], 'accuracy': []}
-```
-
-### Training the Model
-Trained the model, monitoring performance on training and validation sets.
-
-```python
-# Training loop
-for epoch in range(num_epochs):
-    model.train()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-    for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item() * images.size(0)
-        _, predicted = torch.max(outputs, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-    epoch_loss = running_loss / len(train_loader.dataset)
-    epoch_acc = correct / total
-    train_metrics['loss'].append(epoch_loss)
-    train_metrics['accuracy'].append(epoch_acc)
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}')
-    
-    # Validation
-    model.eval()
-    val_running_loss = 0.0
-    val_correct = 0
-    val_total = 0
-    with torch.no_grad():
-        for images, labels in val_loader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            val_running_loss += loss.item() * images.size(0)
-            _, predicted = torch.max(outputs, 1)
-            val_total += labels.size(0)
-            val_correct += (predicted == labels).sum().item()
-    val_epoch_loss = val_running_loss / len(val_loader.dataset)
-    val_epoch_acc = val_correct / val_total
-    val_metrics['loss'].append(val_epoch_loss)
-    val_metrics['accuracy'].append(val_epoch_acc)
-    print(f'Validation Loss: {val_epoch_loss:.4f}, Accuracy: {val_epoch_acc:.4f}')
-```
-
-### Evaluation and Results
-Evaluated the model on the test set to determine its accuracy and loss.
-
-```python
-# Evaluate the model on test data
-model.eval()
-test_running_loss = 0.0
-test_correct = 0
-test_total = 0
-with torch.no_grad():
-    for images, labels in test_loader:
-        images, labels = images.to(device), labels.to(device)
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        test_running_loss += loss.item() * images.size(0)
-        _, predicted = torch.max(outputs, 1)
-        test_total += labels.size(0)
-        test_correct += (predicted == labels).sum().item()
-test_epoch_loss = test_running_loss / len(test_loader.dataset)
-test_epoch_acc = test_correct / test_total
-print(f'Test Loss: {test_epoch_loss:.4f}, Accuracy: {test_epoch_acc:.4f}')
-```
-
-### Results Visualization
-Visualized the training and validation loss and accuracy over epochs.
-
-```python
-# Plot training and validation loss
-plt.subplot(121)
+# Plotting Loss
+plt.subplot(1, 2, 1)
 plt.plot(train_metrics['loss'], label='Training Loss')
 plt.plot(val_metrics['loss'], label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
-plt.legend()
 plt.title('Training and Validation Loss')
+plt.legend()
 
-# Plot training and testing accuracy
-plt.subplot(122)
+# Plotting Accuracy
+plt.subplot(1, 2, 2)
 plt.plot(train_metrics['accuracy'], label='Training Accuracy')
 plt.plot(val_metrics['accuracy'], label='Validation Accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy')
-plt.legend()
 plt.title('Training and Validation Accuracy')
-
-plt.show()
+plt.legend()
 ```
-![Unknown](https://github.com/user-attachments/assets/d1817ff7-0e18-42e2-a187-abcfe1b39e5d)
 
+## Challenges and Considerations
 
-## Conclusion
-This project demonstrates the application of deep learning techniques to classify flower species using the ResNet50 model. The high accuracy achieved reflects the model's effectiveness and the thoroughness of the preprocessing and training process. 
+1. **Dataset Complexity**: The Oxford 102 Flowers dataset is challenging due to variations in flower orientation, lighting conditions, and backgrounds.
+2. **Limited Data**: With only about 8,189 images spread across 102 classes, each class has relatively few examples.
+3. **Computational Resources**: Training deep learning models requires significant computational resources.
+4. **Overfitting**: The relatively small dataset makes the model prone to overfitting, requiring careful application of regularization techniques.
 
-## Repository Structure
-- `Flowers CV.ipynb`: The Jupyter notebook containing all the code and explanations for the project.
-- `README.md`: This file, providing an overview and detailed documentation of the project.
+## Future Improvements
+
+Several strategies could improve the model's performance:
+
+1. **Increase the number of training epochs**: While we trained for 20 epochs, more epochs might lead to better convergence.
+2. **Fine-tune more layers**: Rather than only training the last layer, consider unfreezing and fine-tuning more layers of the ResNet50 model.
+3. **Experiment with different optimizers and learning rates**: Try Adam or other optimizers, and tune the learning rate for potentially faster and better convergence.
+4. **Enhanced data augmentation**: Explore more advanced techniques like rotation, color jittering, or random cropping to increase training data diversity.
+5. **Regularization techniques**: Apply dropout or batch normalization to further improve generalization and reduce overfitting.
+6. **Model ensembling**: Train multiple models and combine their predictions for potentially higher accuracy.
+7. **Test time augmentation**: Apply multiple transformations during inference and average predictions.
 
 ## How to Use
-1. Clone this repository to your local machine.
-2. Install the necessary dependencies using `pip install -r requirements.txt`.
-3. Run the Jupyter notebook `Flowers CV.ipynb` to see the entire workflow and results.
 
-## Future Work
-Future improvements could include experimenting with other deep learning architectures, applying transfer learning to different datasets, and further tuning hyperparameters for even better performance.
+1. Clone this repository:
 
----
+```bash
+git clone https://github.com/username/Flowers-Classification-CV-.git
+cd Flowers-Classification-CV-
+```
+
+2. Install the required dependencies:
+
+```bash
+pip install torch torchvision numpy pandas matplotlib seaborn scipy tqdm
+```
+
+3. Run the Jupyter notebook:
+
+```bash
+jupyter notebook "Flowers CV.ipynb"
+```
+
+4. Follow the steps in the notebook to train and evaluate the model.
+
+## Conclusion
+
+This project demonstrates the effectiveness of transfer learning for specialized image classification tasks. By leveraging a pre-trained ResNet50 model and fine-tuning only the final layer, we achieved good performance on the challenging task of flower species classification. The approach shows that even with limited training data and computational resources, deep learning can be successfully applied to specialized image classification problems.
+
+## References
+
+1. Nilsback, M-E. and Zisserman, A. "Automated flower classification over a large number of classes" Proceedings of the Indian Conference on Computer Vision, Graphics and Image Processing (2008)
+2. [PyTorch documentation](https://pytorch.org/docs/stable/index.html)
+3. [Oxford 102 Flower Dataset](https://www.robots.ox.ac.uk/~vgg/data/flowers/102/)
+4. He, K., Zhang, X., Ren, S., & Sun, J. (2016). "Deep residual learning for image recognition." In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 770-778).
